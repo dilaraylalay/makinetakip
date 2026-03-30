@@ -1,0 +1,2 @@
+# makinetakip
+Makine 1 
