@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Makine Takip — Canlı Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0e1a; --surface: #111827; --border: rgba(255,255,255,0.06);
+  --accent: #00e5a0; --accent2: #ff4d6d; --amber: #ffb830;
+  --text: #e8eaf0; --muted: #6b7280;
+  --mono: 'DM Mono', monospace; --sans: 'Syne', sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background-image: linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+  background-size: 40px 40px; pointer-events: none; z-index: 0;
+}
+.wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 60px; }
+header { padding: 32px 0 40px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); margin-bottom: 40px; }
+.logo { display: flex; align-items: center; gap: 14px; }
+.logo-icon { width: 44px; height: 44px; background: linear-gradient(135deg, var(--accent), #00a870); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.logo-text h1 { font-size: 18px; font-weight: 700; }
+.logo-text p { font-size: 12px; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+.live-badge { display: flex; align-items: center; gap: 8px; background: rgba(0,229,160,0.08); border: 1px solid rgba(0,229,160,0.2); border-radius: 100px; padding: 6px 14px; font-size: 12px; font-family: var(--mono); color: var(--accent); }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+.status-banner { border-radius: 16px; padding: 28px 32px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; transition: all .5s ease; }
+.status-banner.calisiyor { background: linear-gradient(135deg,rgba(0,229,160,.12),rgba(0,229,160,.04)); border: 1px solid rgba(0,229,160,.25); }
+.status-banner.durdu { background: linear-gradient(135deg,rgba(255,77,109,.12),rgba(255,77,109,.04)); border: 1px solid rgba(255,77,109,.25); }
+.status-banner.loading { background: rgba(255,255,255,.03); border: 1px solid var(--border); }
+.status-left { display: flex; align-items: center; gap: 20px; }
+.status-indicator { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; }
+.status-banner.calisiyor .status-indicator { background: rgba(0,229,160,.15); }
+.status-banner.durdu .status-indicator { background: rgba(255,77,109,.15); }
+.status-banner.loading .status-indicator { background: rgba(255,255,255,.05); }
+.status-label { font-size: 13px; color: var(--muted); font-family: var(--mono); margin-bottom: 4px; }
+.status-value { font-size: 28px; font-weight: 800; letter-spacing: -.5px; }
+.status-banner.calisiyor .status-value { color: var(--accent); }
+.status-banner.durdu .status-value { color: var(--accent2); }
+.status-banner.loading .status-value { color: var(--muted); }
+.status-shift { font-family: var(--mono); font-size: 13px; color: var(--muted); background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; }
+.status-shift span { color: var(--text); font-weight: 500; }
+.metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 24px; }
+@media(max-width:640px){ .metrics{grid-template-columns:1fr 1fr} .metric-card:last-child{grid-column:span 2} }
+.metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; position: relative; overflow: hidden; }
+.metric-card::before { content:''; position:absolute; top:0;left:0;right:0; height:2px; border-radius:14px 14px 0 0; }
+.metric-card.green::before{background:var(--accent)} .metric-card.red::before{background:var(--accent2)} .metric-card.amber::before{background:var(--amber)}
+.metric-label { font-size: 11px; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 12px; }
+.metric-value { font-size: 38px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+.metric-card.green .metric-value{color:var(--accent)} .metric-card.red .metric-value{color:var(--accent2)} .metric-card.amber .metric-value{color:var(--amber)}
+.metric-unit { font-size: 14px; font-weight: 400; color: var(--muted); margin-left: 4px; }
+.gauge-wrap { display: flex; align-items: center; gap: 20px; margin-top: 8px; }
+.gauge-bar { flex:1; height:6px; background:rgba(255,255,255,.08); border-radius:3px; overflow:hidden; }
+.gauge-fill { height:100%; border-radius:3px; transition:width 1s ease; }
+.gauge-pct { font-size:13px; font-family:var(--mono); color:var(--muted); }
+.bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media(max-width:700px){.bottom-grid{grid-template-columns:1fr}}
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.panel-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.panel-title { font-size: 13px; font-weight: 600; }
+.panel-badge { font-size:11px; font-family:var(--mono); color:var(--muted); background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:6px; padding:3px 8px; }
+.panel-body { padding: 20px; }
+.log-list { display: flex; flex-direction: column; gap: 8px; }
+.log-item { display:flex; align-items:center; gap:12px; padding:10px 12px; background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:8px; font-family:var(--mono); font-size:13px; }
+.log-time { color:var(--accent2); font-weight:500; min-width:48px; }
+.log-empty { text-align:center; color:var(--muted); font-family:var(--mono); font-size:13px; padding:24px 0; }
+.timeline { display:flex; flex-direction:column; }
+.tl-item { display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.tl-item:last-child{border-bottom:none}
+.tl-dot { width:8px; height:8px; border-radius:50%; margin-top:4px; flex-shrink:0; }
+.tl-dot.green{background:var(--accent)} .tl-dot.red{background:var(--accent2)} .tl-dot.amber{background:var(--amber)}
+.tl-text{color:var(--text);line-height:1.5} .tl-time{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.update-row { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:32px; font-family:var(--mono); font-size:12px; color:var(--muted); }
+.offline-bar { display:none; background:rgba(255,184,48,.1); border:1px solid rgba(255,184,48,.3); border-radius:10px; padding:12px 20px; margin-bottom:20px; font-size:13px; color:var(--amber); font-family:var(--mono); text-align:center; }
+.offline-bar.show{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🏭</div>
+      <div class="logo-text">
+        <h1>Makine Takip</h1>
+        <p>Yuvarlak Örme Makinesi — Canlı İzleme</p>
+      </div>
+    </div>
+    <div class="live-badge"><div class="live-dot"></div>CANLI</div>
+  </header>
+  <div class="offline-bar" id="offline-bar">⚠ Bağlantı kesildi — son veri gösteriliyor</div>
+  <div class="status-banner loading" id="status-banner">
+    <div class="status-left">
+      <div class="status-indicator" id="status-icon">⏳</div>
+      <div>
+        <div class="status-label">MAKİNE DURUMU</div>
+        <div class="status-value" id="status-text">Bağlanıyor...</div>
+      </div>
+    </div>
+    <div class="status-shift">Aktif Shift: <span id="shift-text">—</span></div>
+  </div>
+  <div class="metrics">
+    <div class="metric-card green">
+      <div class="metric-label">Çalışan Süre</div>
+      <div class="metric-value" id="calisan-val">—<span class="metric-unit">dk</span></div>
+    </div>
+    <div class="metric-card red">
+      <div class="metric-label">Duran Süre</div>
+      <div class="metric-value" id="duran-val">—<span class="metric-unit">dk</span></div>
+    </div>
+    <div class="metric-card amber">
+      <div class="metric-label">Verimlilik</div>
+      <div class="metric-value" id="verimlilik-val">—<span class="metric-unit">%</span></div>
+      <div class="gauge-wrap">
+        <div class="gauge-bar"><div class="gauge-fill" id="gauge-fill" style="width:0%"></div></div>
+        <div class="gauge-pct" id="gauge-pct">0%</div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-grid">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Son Kayıtlar</div>
+        <div class="panel-badge" id="son-kayit-zaman">—</div>
+      </div>
+      <div class="panel-body">
+        <div class="log-list" id="log-list"><div class="log-empty">Veri bekleniyor...</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Shift Özeti</div>
+        <div class="panel-badge" id="son-guncelleme">—</div>
+      </div>
+      <div class="panel-body">
+        <div class="timeline" id="timeline">
+          <div class="tl-item"><div class="tl-dot amber"></div><div><div class="tl-text">Veri bekleniyor...</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="update-row"><span id="update-text">Her 30 saniyede güncellenir</span></div>
+</div>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycby9f2vrvfjlQUiA_ngZ78QuzRrKMNILlXnx1s76S1fU8xEuyK2CTZKdZxCRKUPI5pYP/exec";
+
+function guncelleStatus(durum) {
+  const banner = document.getElementById("status-banner");
+  const icon = document.getElementById("status-icon");
+  const text = document.getElementById("status-text");
+  banner.className = "status-banner";
+  if (durum === "CALISIYOR") {
+    banner.classList.add("calisiyor"); icon.textContent = "⚙️"; text.textContent = "ÇALIŞIYOR";
+  } else if (durum === "DURDU") {
+    banner.classList.add("durdu"); icon.textContent = "⛔"; text.textContent = "DURDU";
+  } else {
+    banner.classList.add("loading"); icon.textContent = "⏳"; text.textContent = durum;
+  }
+}
+
+async function veriler() {
+  try {
+    const r = await fetch(GAS_URL + "?t=" + Date.now());
+    const d = await r.json();
+
+    if (d.error) { guncelleStatus("Veri yok henüz"); return; }
+
+    const calisan = parseInt(d.calisan)    || 0;
+    const duran   = parseInt(d.duran)      || 0;
+    const verim   = parseInt(d.verimlilik) || 0;
+    const durum   = d.durum || "—";
+    const shift   = d.shift || "—";
+    const zaman   = d.zaman || "";
+
+    guncelleStatus(durum);
+    document.getElementById("shift-text").textContent   = shift;
+    document.getElementById("calisan-val").innerHTML    = calisan + '<span class="metric-unit">dk</span>';
+    document.getElementById("duran-val").innerHTML      = duran   + '<span class="metric-unit">dk</span>';
+    document.getElementById("verimlilik-val").innerHTML = verim   + '<span class="metric-unit">%</span>';
+
+    const gf = document.getElementById("gauge-fill");
+    gf.style.width = verim + "%";
+    gf.style.background = verim >= 85 ? "var(--accent)" : verim >= 70 ? "var(--amber)" : "var(--accent2)";
+    document.getElementById("gauge-pct").textContent = verim + "%";
+
+    const zamanStr = zaman ? new Date(zaman).toLocaleTimeString("tr-TR", {hour:"2-digit", minute:"2-digit"}) : "—";
+    document.getElementById("son-kayit-zaman").textContent = "Son: " + zamanStr;
+    document.getElementById("log-list").innerHTML = `
+      <div class="log-item">
+        <span class="log-time">${zamanStr}</span>
+        <span class="log-dur">${durum === "CALISIYOR" ? "Makine çalışıyor" : "Makine durdu"}</span>
+      </div>`;
+
+    document.getElementById("timeline").innerHTML = `
+      <div class="tl-item"><div class="tl-dot green"></div><div><div class="tl-text">Çalışan: <strong>${calisan} dakika</strong></div><div class="tl-time">${shift}</div></div></div>
+      <div class="tl-item"><div class="tl-dot red"></div><div><div class="tl-text">Duran: <strong>${duran} dakika</strong></div></div></div>
+      <div class="tl-item"><div class="tl-dot amber"></div><div><div class="tl-text">Verimlilik: <strong>%${verim}</strong></div><div class="tl-time">${calisan+duran} dk toplam</div></div></div>`;
+
+    const simdi = new Date();
+    const saat = simdi.toLocaleTimeString("tr-TR");
+    document.getElementById("son-guncelleme").textContent = saat;
+    document.getElementById("update-text").textContent = "Son güncelleme: " + saat;
+    document.getElementById("offline-bar").classList.remove("show");
+
+  } catch(e) {
+    guncelleStatus("Bağlantı hatası");
+    document.getElementById("offline-bar").classList.add("show");
+    document.getElementById("update-text").textContent = "Yeniden deneniyor...";
+  }
+}
+
+veriler();
+setInterval(veriler, 30000);
+</script>
+</body>
+</html>
